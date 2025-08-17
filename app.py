@@ -33,8 +33,16 @@ class DummyRAG:
 # Load environment variables
 # ------------------------------
 load_dotenv()
-MODEL_NAME = "gemini-2.0-flash-lite"
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.0-flash-lite")
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
+SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_PATH", "service_account.json")
+
+# ------------------------------
+# Check if service account file exists
+# ------------------------------
+if not os.path.isfile(SERVICE_ACCOUNT_FILE):
+    st.error(f"Service account JSON not found at: {SERVICE_ACCOUNT_FILE}")
+    st.stop()
 
 # ------------------------------
 # Streamlit UI
@@ -73,8 +81,6 @@ Provide:
 # ------------------------------
 # Function to get OAuth token from service account JSON explicitly
 # ------------------------------
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "service_account.json")
-
 def get_access_token():
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE,
@@ -87,22 +93,25 @@ def get_access_token():
 # Function to call Gemini API
 # ------------------------------
 def call_gemini(prompt):
-    access_token = get_access_token()
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json; charset=utf-8"
-    }
-    payload = {
-        "prompt": prompt,
-        "temperature": 0.2,
-        "maxOutputTokens": 500
-    }
-    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
-    if response.status_code == 200:
-        result = response.json()
-        return result["candidates"][0]["content"]
-    else:
-        return f"Error: {response.status_code}, {response.text}"
+    try:
+        access_token = get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json; charset=utf-8"
+        }
+        payload = {
+            "prompt": prompt,
+            "temperature": 0.2,
+            "maxOutputTokens": 500
+        }
+        response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
+        if response.status_code == 200:
+            result = response.json()
+            return result["candidates"][0]["content"]
+        else:
+            return f"Error: {response.status_code}, {response.text}"
+    except Exception as e:
+        return f"Failed to call Gemini API: {str(e)}"
 
 # ------------------------------
 # Analyze button
