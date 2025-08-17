@@ -15,6 +15,10 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
+# Define the API URL and model name as constants
+MODEL_NAME = "gemini-2.0-flash-lite"
+API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={GOOGLE_API_KEY}"
+
 # --- Simulated Data and Knowledge Base (Very Light RAG) ---
 # In a real application, this would be a vector database or a proper data ingestion pipeline.
 # Here, we'll use a simple dictionary to represent our 'knowledge'.
@@ -56,6 +60,10 @@ def agent_root_cause_analysis(incident: str) -> str:
     Simulates a simple agentic workflow using a chain of thought.
     Each 'step' is a function call.
     """
+    if not GOOGLE_API_KEY:
+        st.error("API key is not set. Please add it to your environment variables or Streamlit secrets.")
+        return "Unable to perform analysis. API key is missing."
+
     st.write("### 🤖 Agentic Analysis Started")
 
     # Step 1: Predictive Analysis (Simulated)
@@ -109,13 +117,8 @@ def agent_root_cause_analysis(incident: str) -> str:
                     }
                 ]
             }
-            # The API key will be provided automatically in the execution environment
-            # when running on a platform like Streamlit.
-            response = requests.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=",
-                headers=headers,
-                data=json.dumps(data)
-            )
+            # Use the defined API_URL which now includes the GOOGLE_API_KEY
+            response = requests.post(API_URL, headers=headers, data=json.dumps(data))
             response.raise_for_status() # Raise an exception for bad status codes
             result = response.json()
             generated_text = result['candidates'][0]['content']['parts'][0]['text']
@@ -129,7 +132,7 @@ def agent_root_cause_analysis(incident: str) -> str:
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="GenAI Root Cause Analyst", layout="wide")
-st.title("MANISH - Network Root Cause Analyst")
+st.title("Network Root Cause Analyst")
 st.markdown("---")
 
 st.markdown("""
@@ -163,4 +166,3 @@ if st.button("🚀 Analyze Incident", use_container_width=True, type="primary"):
 
 st.markdown("---")
 st.caption("Conceptual Demo powered by Streamlit and the Gemini API.")
-
