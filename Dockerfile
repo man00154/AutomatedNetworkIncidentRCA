@@ -10,13 +10,13 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
+# Copy all app files
 COPY . .
 
 # Expose Streamlit port
 EXPOSE 8501
 
-# Set environment variables (optional: you can also use .env)
+# Environment variables for Streamlit
 ENV STREAMLIT_SERVER_ENABLECORS=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
