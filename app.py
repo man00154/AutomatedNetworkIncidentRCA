@@ -6,7 +6,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.agents import initialize_agent, Tool
-from langgraph import Graph
+
+# ------------------------------
+# Lightweight replacement for LangGraph
+# ------------------------------
+class SimpleGraph:
+    def __init__(self):
+        self.nodes = []
+
+    def add_node(self, name, description=""):
+        self.nodes.append({"name": name, "description": description})
+
+    def serialize(self):
+        return self.nodes
 
 # Load API key
 load_dotenv()
@@ -33,8 +45,8 @@ def predictive_analysis(incident):
     # Placeholder: In real use, feed ML model here
     return "High probability of router misconfiguration causing packet loss."
 
-# Simple LangGraph usage
-graph = Graph()
+# Simple graph usage
+graph = SimpleGraph()
 graph.add_node("Incident", description=incident_summary)
 
 # Define prompt template
