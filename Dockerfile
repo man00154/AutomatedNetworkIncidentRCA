@@ -1,21 +1,24 @@
-# Use official lightweight Python image
+# Base image
 FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy files
-COPY app.py requirements.txt ./
+# Copy requirements
+COPY requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app code
+COPY . .
 
 # Expose Streamlit port
 EXPOSE 8501
 
-# Set Streamlit config to run in headless mode
+# Set environment variables (optional: you can also use .env)
+ENV STREAMLIT_SERVER_ENABLECORS=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-# Command to run the app
+# Run the app
 CMD ["streamlit", "run", "app.py"]
