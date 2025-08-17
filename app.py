@@ -1,131 +1,166 @@
+# app.py
 import os
-import json
 import streamlit as st
+import json
 import requests
-from dotenv import load_dotenv
-from google.oauth2 import service_account
-from google.auth.transport.requests import Request
+from typing import List, Dict
+import time
 
-# ------------------------------
-# Lightweight replacement for LangGraph
-# ------------------------------
-class SimpleGraph:
-    def __init__(self):
-        self.nodes = []
+# Placeholder for your actual API key.
+# It's a best practice to use Streamlit secrets for this in a real-world app.
+# Create a file named .streamlit/secrets.toml and add `GOOGLE_API_KEY="your_api_key"`
+# Then access it with st.secrets["GOOGLE_API_KEY"]
+if "GOOGLE_API_KEY" in st.secrets:
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+else:
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-    def add_node(self, name, description=""):
-        self.nodes.append({"name": name, "description": description})
+# --- Simulated Data and Knowledge Base (Very Light RAG) ---
+# In a real application, this would be a vector database or a proper data ingestion pipeline.
+# Here, we'll use a simple dictionary to represent our 'knowledge'.
+KNOWLEDGE_BASE = {
+    "high latency": {
+        "title": "High Network Latency Troubleshooting Guide",
+        "content": "High latency can be caused by network congestion, firewall misconfigurations, or a slow server response. Correlate with network traffic logs (e.g., via `ping` or `traceroute`) and server performance metrics. The root cause is often identified by analyzing packet loss and jitter.",
+        "actionable_intelligence": "Action: Investigate firewall rules for any recent changes and check server CPU/memory usage during peak latency."
+    },
+    "packet loss": {
+        "title": "Network Packet Loss Analysis",
+        "content": "Packet loss indicates dropped packets during transmission. Common causes include faulty cabling, overloaded network devices (routers, switches), or insufficient bandwidth. Check device health, CPU/memory usage, and review interface counters for discard rates.",
+        "actionable_intelligence": "Action: Ping network hops to isolate the area of packet loss and check device health metrics for signs of an overload."
+    },
+    "service unreachable": {
+        "title": "Service Unreachable Troubleshooting",
+        "content": "A 'service unreachable' error suggests a problem with DNS resolution, an incorrect IP address, or a service not running on the destination server. Start by verifying DNS and checking the service status (`systemctl status [service]`) on the target machine.",
+        "actionable_intelligence": "Action: Perform a DNS lookup and verify the service is running. If both are correct, check routing tables for misconfigurations."
+    }
+}
 
-    def serialize(self):
-        return self.nodes
-
-# ------------------------------
-# Lightweight in-memory RAG store
-# ------------------------------
-class DummyRAG:
-    def __init__(self, docs=None):
-        self.docs = docs or ["Network incidents data placeholder"]
-
-    def query(self, q):
-        return self.docs[0]
-
-# ------------------------------
-# Load environment variables
-# ------------------------------
-load_dotenv()
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.0-flash-lite")
-API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
-SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_PATH", "service_account.json")
-
-# ------------------------------
-# Check if service account file exists
-# ------------------------------
-if not os.path.isfile(SERVICE_ACCOUNT_FILE):
-    st.error(f"Service account JSON not found at: {SERVICE_ACCOUNT_FILE}")
-    st.stop()
-
-# ------------------------------
-# Streamlit UI
-# ------------------------------
-st.set_page_config(page_title="Network Root Cause Analyst", layout="wide")
-st.title("MANISH - Autonomous Network Root Cause Analyst")
-
-incident_summary = st.text_area("Enter Network Incident Summary:", height=150)
-
-# Initialize lightweight RAG
-vectorstore = DummyRAG()
-
-# Simple predictive analysis
-def predictive_analysis(incident):
-    return "High probability of router misconfiguration causing packet loss."
-
-# Graph
-graph = SimpleGraph()
-graph.add_node("Incident", description=incident_summary)
-
-# Prompt builder
-def build_prompt(incident_summary, prediction, context):
-    return f"""
-You are a network root cause analyst. Analyze the following network incident:
-
-Incident: {incident_summary}
-Context: {context}
-Predicted cause: {prediction}
-
-Provide:
-1. Root Cause
-2. Explanation in simple terms
-3. Suggested remediation steps
-"""
-
-# ------------------------------
-# Function to get OAuth token from service account JSON explicitly
-# ------------------------------
-def get_access_token():
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
-        scopes=["https://www.googleapis.com/auth/cloud-platform"]
-    )
-    credentials.refresh(Request())
-    return credentials.token
-
-# ------------------------------
-# Function to call Gemini API
-# ------------------------------
-def call_gemini(prompt):
-    try:
-        access_token = get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json; charset=utf-8"
-        }
-        payload = {
-            "prompt": prompt,
-            "temperature": 0.2,
-            "maxOutputTokens": 500
-        }
-        response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
-        if response.status_code == 200:
-            result = response.json()
-            return result["candidates"][0]["content"]
-        else:
-            return f"Error: {response.status_code}, {response.text}"
-    except Exception as e:
-        return f"Failed to call Gemini API: {str(e)}"
-
-# ------------------------------
-# Analyze button
-# ------------------------------
-if st.button("Analyze Incident"):
-    if not incident_summary:
-        st.warning("Please enter an incident summary.")
+# --- Predictive Analysis (Simulated) ---
+def predict_incident_type(incident_description: str) -> str:
+    """A very simple predictive function based on keywords."""
+    incident_description = incident_description.lower()
+    if "latency" in incident_description or "slow" in incident_description:
+        return "high latency"
+    elif "packet" in incident_description or "drop" in incident_description:
+        return "packet loss"
+    elif "unreachable" in incident_description or "down" in incident_description:
+        return "service unreachable"
     else:
-        prediction = predictive_analysis(incident_summary)
-        graph.add_node("Prediction", description=prediction)
-        context = vectorstore.query(incident_summary)
-        prompt = build_prompt(incident_summary, prediction, context)
-        result = call_gemini(prompt)
-        st.subheader("Analysis Result")
-        st.write(result)
-        st.subheader("Graph Overview")
-        st.json(graph.serialize())
+        return "unknown"
+
+# --- Agentic Workflow (Simplified LangGraph) ---
+# This simulates a LangGraph state machine with a simple, linear flow.
+def agent_root_cause_analysis(incident: str) -> str:
+    """
+    Simulates a simple agentic workflow using a chain of thought.
+    Each 'step' is a function call.
+    """
+    st.write("### 🤖 Agentic Analysis Started")
+
+    # Step 1: Predictive Analysis (Simulated)
+    with st.spinner("Step 1/3: Performing predictive analysis..."):
+        incident_type = predict_incident_type(incident)
+        time.sleep(1) # Simulate work
+        st.info(f"💡 Prediction: This incident is likely related to **{incident_type.replace('_', ' ')}**.")
+
+    # Step 2: Retrieval (Simple RAG)
+    with st.spinner("Step 2/3: Retrieving relevant knowledge..."):
+        # Retrieve context from our knowledge base based on the predicted type.
+        context = KNOWLEDGE_BASE.get(incident_type, {
+            "title": "General Network Troubleshooting",
+            "content": "No specific match found in the knowledge base. The analysis will proceed with general best practices.",
+            "actionable_intelligence": "Action: Start with basic checks like connectivity (`ping`), device status, and recent configuration changes."
+        })
+        time.sleep(1) # Simulate work
+        st.success("✅ Relevant knowledge found.")
+
+    # Step 3: LLM Generation (The core of the analysis)
+    with st.spinner("Step 3/3: Generating human-readable explanation..."):
+        # Construct the prompt for the Gemini API.
+        prompt = f"""
+        Act as a senior network engineer and root cause analyst. Your task is to analyze a network incident and provide a clear, human-readable explanation of the root cause, including the 'why' behind the problem.
+
+        Based on the following incident description and retrieved network knowledge, generate a concise report.
+
+        **Incident Description:**
+        {incident}
+
+        **Retrieved Knowledge:**
+        Title: {context['title']}
+        Content: {context['content']}
+        Actionable Intelligence: {context['actionable_intelligence']}
+
+        Your response must include the following sections:
+        1.  **Identified Problem:** A single sentence summarizing the core issue.
+        2.  **Root Cause Analysis:** A brief paragraph explaining the 'why' behind the problem. Use the provided knowledge and connect it to the incident description.
+        3.  **Actionable Intelligence:** Extract and rephrase the "actionable intelligence" to provide a clear, next-step recommendation.
+        """
+
+        # API Call
+        try:
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            data = {
+                "contents": [
+                    {
+                        "parts": [{"text": prompt}]
+                    }
+                ]
+            }
+            # The API key will be provided automatically in the execution environment
+            # when running on a platform like Streamlit.
+            response = requests.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=",
+                headers=headers,
+                data=json.dumps(data)
+            )
+            response.raise_for_status() # Raise an exception for bad status codes
+            result = response.json()
+            generated_text = result['candidates'][0]['content']['parts'][0]['text']
+            time.sleep(2) # Simulate work
+            st.success("✅ Analysis complete!")
+            return generated_text
+
+        except Exception as e:
+            st.error(f"Error during LLM generation: {e}")
+            return "Unable to perform analysis. Please check your API key and network connection."
+
+# --- Streamlit UI ---
+st.set_page_config(page_title="GenAI Root Cause Analyst", layout="wide")
+st.title("MANISH - Network Root Cause Analyst")
+st.markdown("---")
+
+st.markdown("""
+Welcome to the **GenAI Root Cause Analyst**.
+This tool, powered by Google's `gemini-2.0-flash-lite`, acts as a virtual network expert.
+It uses a combination of predictive analysis, simple RAG, and an agentic workflow to diagnose network incidents and provide actionable intelligence.
+
+**Instructions:**
+Enter a brief description of a network incident and click 'Analyze' to receive a detailed root cause analysis.
+""")
+
+# Incident Input
+incident_description = st.text_area(
+    "Describe the network incident:",
+    height=150,
+    placeholder="e.g., 'The web server is responding very slowly. Users are reporting long load times and some connection timeouts.'"
+)
+
+# Analyze Button
+if st.button("🚀 Analyze Incident", use_container_width=True, type="primary"):
+    if not incident_description.strip():
+        st.warning("Please enter a description of the incident to analyze.")
+    elif not GOOGLE_API_KEY:
+        st.error("Please set your GOOGLE_API_KEY as a Streamlit secret or environment variable.")
+    else:
+        st.markdown("### Analysis Report")
+        with st.container():
+            # Start the agentic workflow
+            report = agent_root_cause_analysis(incident_description)
+            st.markdown(report)
+
+st.markdown("---")
+st.caption("Conceptual Demo powered by Streamlit and the Gemini API.")
+
