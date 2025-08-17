@@ -3,7 +3,7 @@ import json
 import streamlit as st
 import requests
 from dotenv import load_dotenv
-import google.auth
+from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 
 # ------------------------------
@@ -71,10 +71,15 @@ Provide:
 """
 
 # ------------------------------
-# Function to get OAuth token from service account
+# Function to get OAuth token from service account JSON explicitly
 # ------------------------------
+SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "service_account.json")
+
 def get_access_token():
-    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE,
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
     credentials.refresh(Request())
     return credentials.token
 
