@@ -1,0 +1,78 @@
+import os
+import streamlit as st
+from dotenv import load_dotenv
+from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain.agents import initialize_agent, Tool
+from langgraph import Graph
+
+# Load API key
+load_dotenv()
+API_KEY = os.getenv("GOOGLE_API_KEY")
+MODEL_NAME = "gemini-2.0-flash-lite"
+API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
+
+st.set_page_config(page_title="Network Root Cause Analyst", layout="wide")
+st.title("MANISH - Autonomous Network Root Cause Analyst")
+
+# Sample input
+incident_summary = st.text_area("Enter Network Incident Summary:", height=150)
+
+# Load or create a lightweight FAISS index for RAG
+vectorstore = None
+if os.path.exists("faiss_index"):
+    vectorstore = FAISS.load_local("faiss_index")
+else:
+    # Example empty RAG setup
+    vectorstore = FAISS.from_texts(["Network incidents data placeholder"], embeddings=None)
+
+# Define a very simple predictive analysis placeholder
+def predictive_analysis(incident):
+    # Placeholder: In real use, feed ML model here
+    return "High probability of router misconfiguration causing packet loss."
+
+# Simple LangGraph usage
+graph = Graph()
+graph.add_node("Incident", description=incident_summary)
+
+# Define prompt template
+prompt = PromptTemplate(
+    input_variables=["incident_summary", "prediction"],
+    template="""
+You are a network root cause analyst. Analyze the following network incident:
+Incident: {incident_summary}
+Predicted cause: {prediction}
+
+Provide:
+1. Root Cause
+2. Explanation in simple terms
+3. Suggested remediation steps
+"""
+)
+
+# Agentic AI tools
+tools = [
+    Tool(
+        name="PredictiveAnalysis",
+        func=predictive_analysis,
+        description="Predict probable root cause for a network incident."
+    )
+]
+
+llm = ChatOpenAI(model_name=MODEL_NAME, temperature=0.2, openai_api_key=API_KEY)
+
+agent = initialize_agent(tools, llm, agent="zero-shot-react-description", verbose=True)
+
+if st.button("Analyze Incident"):
+    if not incident_summary:
+        st.warning("Please enter an incident summary.")
+    else:
+        prediction = predictive_analysis(incident_summary)
+        graph.add_node("Prediction", description=prediction)
+        result = agent.run(f"incident_summary: {incident_summary}\nprediction: {prediction}")
+        st.subheader("Analysis Result")
+        st.write(result)
+        st.subheader("Graph Overview")
+        st.json(graph.serialize())
