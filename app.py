@@ -1,8 +1,6 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-from langchain_community.vectorstores import FAISS
-from langchain.embeddings import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.agents import initialize_agent, Tool
@@ -20,6 +18,17 @@ class SimpleGraph:
     def serialize(self):
         return self.nodes
 
+# ------------------------------
+# Lightweight in-memory RAG store
+# ------------------------------
+class DummyRAG:
+    def __init__(self, docs=None):
+        self.docs = docs or ["Network incidents data placeholder"]
+
+    def query(self, q):
+        # Just return the first doc as a placeholder
+        return self.docs[0]
+
 # Load API key
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -32,13 +41,8 @@ st.title("MANISH - Autonomous Network Root Cause Analyst")
 # Sample input
 incident_summary = st.text_area("Enter Network Incident Summary:", height=150)
 
-# Load or create a lightweight FAISS index for RAG
-vectorstore = None
-embeddings = OpenAIEmbeddings(openai_api_key=API_KEY)  # lightweight embeddings
-if os.path.exists("faiss_index"):
-    vectorstore = FAISS.load_local("faiss_index", embeddings)
-else:
-    vectorstore = FAISS.from_texts(["Network incidents data placeholder"], embeddings=embeddings)
+# Initialize lightweight RAG
+vectorstore = DummyRAG()
 
 # Define a very simple predictive analysis placeholder
 def predictive_analysis(incident):
@@ -83,7 +87,9 @@ if st.button("Analyze Incident"):
     else:
         prediction = predictive_analysis(incident_summary)
         graph.add_node("Prediction", description=prediction)
-        result = agent.run(f"incident_summary: {incident_summary}\nprediction: {prediction}")
+        # RAG query placeholder
+        context = vectorstore.query(incident_summary)
+        result = agent.run(f"incident_summary: {incident_summary}\ncontext: {context}\nprediction: {prediction}")
         st.subheader("Analysis Result")
         st.write(result)
         st.subheader("Graph Overview")
