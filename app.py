@@ -1,9 +1,10 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.agents import initialize_agent, Tool
+
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # ------------------------------
 # Lightweight replacement for LangGraph
@@ -26,14 +27,12 @@ class DummyRAG:
         self.docs = docs or ["Network incidents data placeholder"]
 
     def query(self, q):
-        # Just return the first doc as a placeholder
         return self.docs[0]
 
 # Load API key
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = "gemini-2.0-flash-lite"
-API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
 
 st.set_page_config(page_title="Network Root Cause Analyst", layout="wide")
 st.title("MANISH - Autonomous Network Root Cause Analyst")
@@ -46,7 +45,6 @@ vectorstore = DummyRAG()
 
 # Define a very simple predictive analysis placeholder
 def predictive_analysis(incident):
-    # Placeholder: In real use, feed ML model here
     return "High probability of router misconfiguration causing packet loss."
 
 # Simple graph usage
@@ -77,7 +75,12 @@ tools = [
     )
 ]
 
-llm = ChatOpenAI(model_name=MODEL_NAME, temperature=0.2, openai_api_key=API_KEY)
+# ✅ Use Google GenAI instead of ChatOpenAI
+llm = ChatGoogleGenerativeAI(
+    model=MODEL_NAME,
+    temperature=0.2,
+    api_key=API_KEY
+)
 
 agent = initialize_agent(tools, llm, agent="zero-shot-react-description", verbose=True)
 
@@ -87,7 +90,6 @@ if st.button("Analyze Incident"):
     else:
         prediction = predictive_analysis(incident_summary)
         graph.add_node("Prediction", description=prediction)
-        # RAG query placeholder
         context = vectorstore.query(incident_summary)
         result = agent.run(f"incident_summary: {incident_summary}\ncontext: {context}\nprediction: {prediction}")
         st.subheader("Analysis Result")
