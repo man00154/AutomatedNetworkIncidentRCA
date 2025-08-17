@@ -8,13 +8,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files including service account JSON
+# Copy all project files including service account JSON and placeholder RAG
 COPY . .
 
 # Expose Streamlit port
 EXPOSE 8501
 
-# Set Streamlit environment variables
+# Streamlit environment variables
 ENV STREAMLIT_SERVER_ENABLECORS=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
