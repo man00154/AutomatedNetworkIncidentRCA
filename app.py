@@ -1,10 +1,8 @@
 import os
+import json
 import streamlit as st
+import requests
 from dotenv import load_dotenv
-from langchain.prompts import PromptTemplate
-from langchain.agents import initialize_agent, Tool
-
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 # ------------------------------
 # Lightweight replacement for LangGraph
@@ -29,34 +27,40 @@ class DummyRAG:
     def query(self, q):
         return self.docs[0]
 
-# Load API key
+# ------------------------------
+# Load API key and config
+# ------------------------------
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = "gemini-2.0-flash-lite"
+API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
 
+# ------------------------------
+# Streamlit UI
+# ------------------------------
 st.set_page_config(page_title="Network Root Cause Analyst", layout="wide")
 st.title("MANISH - Autonomous Network Root Cause Analyst")
 
-# Sample input
 incident_summary = st.text_area("Enter Network Incident Summary:", height=150)
 
 # Initialize lightweight RAG
 vectorstore = DummyRAG()
 
-# Define a very simple predictive analysis placeholder
+# Simple predictive analysis
 def predictive_analysis(incident):
     return "High probability of router misconfiguration causing packet loss."
 
-# Simple graph usage
+# Graph
 graph = SimpleGraph()
 graph.add_node("Incident", description=incident_summary)
 
-# Define prompt template
-prompt = PromptTemplate(
-    input_variables=["incident_summary", "prediction"],
-    template="""
+# Prompt template
+def build_prompt(incident_summary, prediction, context):
+    return f"""
 You are a network root cause analyst. Analyze the following network incident:
+
 Incident: {incident_summary}
+Context: {context}
 Predicted cause: {prediction}
 
 Provide:
@@ -64,26 +68,29 @@ Provide:
 2. Explanation in simple terms
 3. Suggested remediation steps
 """
-)
 
-# Agentic AI tools
-tools = [
-    Tool(
-        name="PredictiveAnalysis",
-        func=predictive_analysis,
-        description="Predict probable root cause for a network incident."
-    )
-]
+# Function to call Gemini API
+def call_gemini(prompt):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json; charset=utf-8"
+    }
+    payload = {
+        "prompt": prompt,
+        "temperature": 0.2,
+        "maxOutputTokens": 500
+    }
+    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
+    if response.status_code == 200:
+        result = response.json()
+        # Gemini API returns text in response['candidates'][0]['content']
+        return result["candidates"][0]["content"]
+    else:
+        return f"Error: {response.status_code}, {response.text}"
 
-# ✅ Use Google GenAI instead of ChatOpenAI
-llm = ChatGoogleGenerativeAI(
-    model=MODEL_NAME,
-    temperature=0.2,
-    api_key=API_KEY
-)
-
-agent = initialize_agent(tools, llm, agent="zero-shot-react-description", verbose=True)
-
+# ------------------------------
+# Analyze button
+# ------------------------------
 if st.button("Analyze Incident"):
     if not incident_summary:
         st.warning("Please enter an incident summary.")
@@ -91,7 +98,8 @@ if st.button("Analyze Incident"):
         prediction = predictive_analysis(incident_summary)
         graph.add_node("Prediction", description=prediction)
         context = vectorstore.query(incident_summary)
-        result = agent.run(f"incident_summary: {incident_summary}\ncontext: {context}\nprediction: {prediction}")
+        prompt = build_prompt(incident_summary, prediction, context)
+        result = call_gemini(prompt)
         st.subheader("Analysis Result")
         st.write(result)
         st.subheader("Graph Overview")
