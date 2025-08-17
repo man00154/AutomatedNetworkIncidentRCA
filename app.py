@@ -3,6 +3,8 @@ import json
 import streamlit as st
 import requests
 from dotenv import load_dotenv
+import google.auth
+from google.auth.transport.requests import Request
 
 # ------------------------------
 # Lightweight replacement for LangGraph
@@ -28,10 +30,9 @@ class DummyRAG:
         return self.docs[0]
 
 # ------------------------------
-# Load API key and config
+# Load environment variables
 # ------------------------------
 load_dotenv()
-API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = "gemini-2.0-flash-lite"
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
 
@@ -54,7 +55,7 @@ def predictive_analysis(incident):
 graph = SimpleGraph()
 graph.add_node("Incident", description=incident_summary)
 
-# Prompt template
+# Prompt builder
 def build_prompt(incident_summary, prediction, context):
     return f"""
 You are a network root cause analyst. Analyze the following network incident:
@@ -69,10 +70,21 @@ Provide:
 3. Suggested remediation steps
 """
 
+# ------------------------------
+# Function to get OAuth token from service account
+# ------------------------------
+def get_access_token():
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    credentials.refresh(Request())
+    return credentials.token
+
+# ------------------------------
 # Function to call Gemini API
+# ------------------------------
 def call_gemini(prompt):
+    access_token = get_access_token()
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json; charset=utf-8"
     }
     payload = {
@@ -83,7 +95,6 @@ def call_gemini(prompt):
     response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
     if response.status_code == 200:
         result = response.json()
-        # Gemini API returns text in response['candidates'][0]['content']
         return result["candidates"][0]["content"]
     else:
         return f"Error: {response.status_code}, {response.text}"
