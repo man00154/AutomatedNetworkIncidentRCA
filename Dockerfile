@@ -1,25 +1,20 @@
-# Use slim Python image
+# Dockerfile
+# Use a lightweight Python base image
 FROM python:3.11-slim
 
-# Set working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy requirements and install
+# Copy the requirements file and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files including service account JSON and placeholder RAG
+# Copy the application code into the container
 COPY . .
 
-# Expose Streamlit port
+# Expose the port that Streamlit runs on
 EXPOSE 8501
 
-# Streamlit environment variables
-ENV STREAMLIT_SERVER_ENABLECORS=false
-ENV STREAMLIT_SERVER_HEADLESS=true
-
-# Set path to service account JSON
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/service_account.json
-
-# Run the app
-CMD ["streamlit", "run", "app.py"]
+# Command to run the Streamlit app
+# The '--server.address=0.0.0.0' is crucial for Docker to expose the port correctly
+ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
