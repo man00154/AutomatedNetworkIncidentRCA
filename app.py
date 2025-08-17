@@ -20,6 +20,15 @@ class SimpleGraph:
     def serialize(self):
         return self.nodes
 
+# Dummy embedding function for lightweight FAISS
+class DummyEmbeddings:
+    def embed_documents(self, texts):
+        # Return a list of zero vectors
+        return [[0.0] * 10 for _ in texts]
+
+    def embed_query(self, text):
+        return [0.0] * 10
+
 # Load API key
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -34,11 +43,11 @@ incident_summary = st.text_area("Enter Network Incident Summary:", height=150)
 
 # Load or create a lightweight FAISS index for RAG
 vectorstore = None
+dummy_embeddings = DummyEmbeddings()
 if os.path.exists("faiss_index"):
     vectorstore = FAISS.load_local("faiss_index")
 else:
-    # Example empty RAG setup
-    vectorstore = FAISS.from_texts(["Network incidents data placeholder"], embeddings=None)
+    vectorstore = FAISS.from_texts(["Network incidents data placeholder"], embeddings=dummy_embeddings)
 
 # Define a very simple predictive analysis placeholder
 def predictive_analysis(incident):
