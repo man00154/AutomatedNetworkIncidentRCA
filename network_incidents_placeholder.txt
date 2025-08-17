@@ -1,0 +1,6 @@
+# Sample network incident data for RAG
+- Router R1 experienced packet loss due to misconfiguration.
+- Switch S2 port flapping caused intermittent connectivity issues.
+- Firewall F3 blocked legitimate traffic due to outdated rules.
+- ISP link outage detected, causing network latency.
+- DNS server D1 failure caused host resolution delays.
